@@ -13,7 +13,6 @@ const ForgotPassword = () => {
         try {
             setLoading(true)
             const { data } = await axios.get(`http://localhost:5000/api/user/forgotpassword/${id}/${token}`);
-            // console.log('updated',data)
             if (data.status === 201) {
                 console.log("user valid")
             } else {
@@ -37,7 +36,7 @@ const ForgotPassword = () => {
         }
         try {
             const { data } = await axios.post(`http://localhost:5000/api/user/${id}/${token}`, { password });
-            console.log('updated', data)
+            // console.log('updated', data)
             if (data.status === 201) {
                 setPassword("")
                 setMessage(true)

@@ -32,6 +32,7 @@ const signUp = async (req, res) => {
             phone,
             password
         });
+        // const newpassword = await bcrypt.hash(user.password, 10)
         if (user) {
             res.status(201).json({
                 _id: user._id,
@@ -42,7 +43,7 @@ const signUp = async (req, res) => {
                 token: createToken(user._id)
             });
         } else {
-            res.status(400).json({ error: "Failed to create user" });
+            return res.status(400).json({ error: "Failed to create user" });
         }
     } catch (error) {
         console.error(error);
@@ -54,16 +55,17 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
     try {
         const user = await User.findOne({ email });
-        if (!user) {
+        if (user) {
+            const isMatch = await user.matchPassword(password);
+            if (isMatch) {
+                res.status(201).json({ status: 201, user })
+            } else {
+                return res.status(400).send('wrong password');
+            }
+        } else {
             return res.status(400).send('Email not found');
         }
-        const isMatch = await user.matchPassword(password);
 
-        if (isMatch) {
-            res.status(201).json({ status: 201, user })
-        } else {
-            return res.status(400).send('Incorrect password');
-        }
     } catch (error) {
         console.error(error);
         return res.status(400).send(error.message);
@@ -74,7 +76,7 @@ const userOtpSend = async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
-        res.status(400).json({ error: "Please Enter Your Email" })
+        return res.status(400).json({ error: "Please Enter Your Email" })
     }
 
 
@@ -105,10 +107,10 @@ const userOtpSend = async (req, res) => {
                 transporter.sendMail(mailOptions, (error, info) => {
                     if (error) {
                         console.log("error", error);
-                        res.status(400).json({ error: "email not send" })
+                        return res.status(400).json({ error: "email not send" })
                     } else {
                         console.log("Email sent", info.response);
-                        res.status(200).json({ message: "Email sent Successfully", otp: OTP })
+                        return res.status(200).json({ message: "Email sent Successfully", otp: OTP })
                     }
                 })
 
@@ -129,25 +131,25 @@ const userOtpSend = async (req, res) => {
                 transporter.sendMail(mailOptions, (error, info) => {
                     if (error) {
                         console.log("error", error);
-                        res.status(400).json({ error: "email not send" })
+                        return res.status(400).json({ error: "email not send" })
                     } else {
                         console.log("Email sent", info.response);
-                        res.status(200).json({ message: "Email sent Successfully", OTP: OTP })
+                        return res.status(200).json({ message: "Email sent Successfully", OTP: OTP })
                     }
                 })
             }
         } else {
-            res.status(400).json({ error: "This User Not Exist In our Db" })
+            return res.status(400).json({ error: "This User Not Exist In our Db" })
         }
     } catch (error) {
-        res.status(400).json({ error: "Invalid Details", error })
+        return res.status(400).json({ error: "Invalid Details", error })
     }
 };
 
 const resetPassword = async (req, res) => {
     const { email } = req.body;
     if (!email) {
-        res.status(401).json({ status: 401, message: "Enter your email" });
+        return res.status(401).json({ status: 401, message: "Enter your email" });
     }
     try {
         const userfind = await User.findOne({ email });
@@ -171,15 +173,15 @@ const resetPassword = async (req, res) => {
 
                 if (error) {
                     console.log("Error:", error);
-                    res.status(401).json({ status: 401, message: "Email not sent " });
+                    return res.status(401).json({ status: 401, message: "Email not sent " });
                 } else {
                     console.log("Email sent succesfully" + info.response);
-                    res.status(201).json({ status: 201, message: "Email sent successfully" });
+                    return res.status(201).json({ status: 201, message: "Email sent successfully" });
                 }
             });
         }
     } catch (error) {
-        res.status(401).json({ status: 401, message: "Invalid user" });
+        return res.status(401).json({ status: 401, message: "Invalid user" });
     }
 };
 
@@ -188,15 +190,14 @@ const forgotPassword = async (req, res) => {
     try {
         const validuser = await User.findOne({ _id: id, verifytoken: token });
         const verifyToken = jwt.verify(token, process.env.PRIVATEKEY);
-        // console.log('very', verifyToken)
         if (validuser && verifyToken._id) {
-            res.status(201).json({ status: 201, validuser })
+            return res.status(201).json({ status: 201, validuser })
         } else {
-            res.status(401).json({ status: 401, message: "user not exist" })
+            return res.status(401).json({ status: 401, message: "user not exist" })
         }
 
     } catch (error) {
-        res.status(401).json({ status: 401, error })
+        return res.status(401).json({ status: 401, error })
     }
 }
 const updatedPassword = async (req, res) => {
@@ -206,19 +207,19 @@ const updatedPassword = async (req, res) => {
 
     try {
         const validuser = await User.findOne({ _id: id, verifytoken: token });
-        // console.log(validuser)
+
         const verifyToken = jwt.verify(token, process.env.PRIVATEKEY);
-        // console.log('Token', verifyToken)
+
         if (validuser && verifyToken._id) {
-            const newpassword = await bcrypt.hash(password, 10);
-            // console.log('has pass', newpassword)
-            const setnewuserpass = await User.findByIdAndUpdate({ _id: id }, { password: newpassword });
+            const newpassword = await bcrypt.hash(password, 12);
+
+            const setnewuserpass = await User.findByIdAndUpdate({ _id: id }, { password: newpassword }, { new: true });
             await setnewuserpass.save();
-            // console.log(setnewuserpass)
-            res.status(201).json({ status: 201, setnewuserpass })
+
+            return res.status(201).json({ status: 201, setnewuserpass })
 
         } else {
-            res.status(401).json({ status: 401, message: "user not exist" })
+            return res.status(401).json({ status: 401, message: "user not exist" })
         }
     } catch (error) {
         res.status(401).json({ status: 401, error })
